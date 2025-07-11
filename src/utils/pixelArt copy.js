@@ -32,39 +32,6 @@ function getDominantColor(data, x, y, blockW, blockH, imgW) {
   return dominant;
 }
 
-// 取平均色
-function getAverageColor(data, x, y, blockW, blockH, imgW) {
-  let r = 0, g = 0, b = 0, count = 0;
-  for (let dy = 0; dy < blockH; dy++) {
-    for (let dx = 0; dx < blockW; dx++) {
-      const px = (y * blockH + dy) * imgW + (x * blockW + dx);
-      const i = px * 4;
-      r += data[i];
-      g += data[i + 1];
-      b += data[i + 2];
-      count++;
-    }
-  }
-  return {
-    r: Math.round(r / count),
-    g: Math.round(g / count),
-    b: Math.round(b / count)
-  };
-}
-
-// 取中心像素色
-function getCenterColor(data, x, y, blockW, blockH, imgW) {
-  const cx = Math.floor(blockW / 2);
-  const cy = Math.floor(blockH / 2);
-  const px = (y * blockH + cy) * imgW + (x * blockW + cx);
-  const i = px * 4;
-  return {
-    r: data[i],
-    g: data[i + 1],
-    b: data[i + 2]
-  };
-}
-
 // hex转rgb
 function hexToRgb(hex) {
   const h = hex.replace('#', '');
@@ -83,8 +50,7 @@ export function generatePixelArt({
   cellSize = 24,
   colorTable,
   showGrid = true,
-  font = 'bold 12px sans-serif',
-  colorMode = 'dominant' // 新增参数
+  font = 'bold 12px sans-serif'
 }) {
   // 1. 缩放图片，获取像素数据
   const imageData = getResizedImageData(img, pixelWidth, pixelHeight);
@@ -102,23 +68,16 @@ export function generatePixelArt({
     hex: c.hex
   }));
 
-  // 3. 生成像素画数据（每格取主色/平均色/中心色）
+  // 3. 生成像素画数据（每格取主色）
   const result = [];
+  // 计算每格实际像素大小（适配缩放后图片）
   const blockW = Math.floor(imgW / pixelWidth);
   const blockH = Math.floor(imgH / pixelHeight);
   for (let y = 0; y < pixelHeight; y++) {
     const row = [];
     for (let x = 0; x < pixelWidth; x++) {
-      let rgb;
-      if (colorMode === 'dominant') {
-        rgb = getDominantColor(data, x, y, blockW, blockH, imgW);
-      } else if (colorMode === 'average') {
-        rgb = getAverageColor(data, x, y, blockW, blockH, imgW);
-      } else if (colorMode === 'center') {
-        rgb = getCenterColor(data, x, y, blockW, blockH, imgW);
-      } else {
-        rgb = getDominantColor(data, x, y, blockW, blockH, imgW);
-      }
+      // 取主色
+      const rgb = getDominantColor(data, x, y, blockW, blockH, imgW);
       // 映射到标准色
       const lab = rgb_to_lab(rgb);
       let minDist = Infinity, minIdx = 0;
