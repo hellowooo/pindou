@@ -3,9 +3,7 @@ import './App.css';
 import { loadColorTable } from './utils/colorTable';
 import { generatePixelArt } from './utils/pixelArt';
 import { exportColorList } from './utils/exportExcel';
-import { Button, InputNumber, Upload, message, Spin, Checkbox, Divider, Select } from 'antd';
-
-const { Option } = Select;
+import { Button, InputNumber, Upload, message, Spin, Checkbox, Divider } from 'antd';
 
 function App() {
   const [img, setImg] = useState(null);
@@ -18,7 +16,6 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [lockRatio, setLockRatio] = useState(false);
   const [ratio, setRatio] = useState(1);
-  const [colorMode, setColorMode] = useState('dominant'); // 取色逻辑
   const canvasRef = useRef();
 
   // 处理图片上传
@@ -84,8 +81,7 @@ function App() {
         pixelHeight,
         cellSize,
         colorTable,
-        showGrid: true,
-        colorMode // 传递取色逻辑
+        showGrid: true
       });
       setCanvasUrl(canvas.toDataURL('image/png'));
       canvasRef.current = canvas;
@@ -152,15 +148,6 @@ function App() {
         <div className="pretty-param-row">
           <span>单格像素(px):</span>
           <InputNumber min={8} max={64} value={cellSize} onChange={setCellSize} />
-        </div>
-        <div className="pretty-param-row">
-          <span>取色方式:</span>
-          <Select value={colorMode} onChange={setColorMode} style={{ width: 180 }}>
-            <Option value="dominant">主色（面积最大）</Option>
-            <Option value="average">平均色</Option>
-            <Option value="center">中心像素色</Option>
-            <Option value="original">自动</Option>
-          </Select>
         </div>
       </div>
       <div className="pretty-section" style={{ textAlign: 'center', marginTop: 18 }}>

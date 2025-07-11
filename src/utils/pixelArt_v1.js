@@ -2,17 +2,7 @@
 // 图片转像素画核心逻辑
 import { rgb_to_lab, diff } from 'color-diff';
 
-// 获取原图像素数据
-export function getImageData(img) {
-  const canvas = document.createElement('canvas');
-  canvas.width = img.width;
-  canvas.height = img.height;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0, img.width, img.height);
-  return ctx.getImageData(0, 0, img.width, img.height);
-}
-
-// 获取缩放后像素数据（原方案）
+// 计算图片缩放后的像素数据
 export function getResizedImageData(img, pixelWidth, pixelHeight) {
   const canvas = document.createElement('canvas');
   canvas.width = pixelWidth;
@@ -22,14 +12,14 @@ export function getResizedImageData(img, pixelWidth, pixelHeight) {
   return ctx.getImageData(0, 0, pixelWidth, pixelHeight);
 }
 
-// 取主色
-function getDominantColor(data, x0, y0, blockW, blockH, imgW) {
+// 取格子中面积最大的颜色（主色/众数色）
+function getDominantColor(data, x, y, blockW, blockH, imgW) {
   const colorCount = {};
   let maxCount = 0;
   let dominant = { r: 0, g: 0, b: 0 };
   for (let dy = 0; dy < blockH; dy++) {
     for (let dx = 0; dx < blockW; dx++) {
-      const px = (y0 + dy) * imgW + (x0 + dx);
+      const px = (y * blockH + dy) * imgW + (x * blockW + dx);
       const i = px * 4;
       const key = `${data[i]},${data[i+1]},${data[i+2]}`;
       colorCount[key] = (colorCount[key] || 0) + 1;
@@ -43,11 +33,11 @@ function getDominantColor(data, x0, y0, blockW, blockH, imgW) {
 }
 
 // 取平均色
-function getAverageColor(data, x0, y0, blockW, blockH, imgW) {
+function getAverageColor(data, x, y, blockW, blockH, imgW) {
   let r = 0, g = 0, b = 0, count = 0;
   for (let dy = 0; dy < blockH; dy++) {
     for (let dx = 0; dx < blockW; dx++) {
-      const px = (y0 + dy) * imgW + (x0 + dx);
+      const px = (y * blockH + dy) * imgW + (x * blockW + dx);
       const i = px * 4;
       r += data[i];
       g += data[i + 1];
@@ -63,10 +53,10 @@ function getAverageColor(data, x0, y0, blockW, blockH, imgW) {
 }
 
 // 取中心像素色
-function getCenterColor(data, x0, y0, blockW, blockH, imgW) {
+function getCenterColor(data, x, y, blockW, blockH, imgW) {
   const cx = Math.floor(blockW / 2);
   const cy = Math.floor(blockH / 2);
-  const px = (y0 + cy) * imgW + (x0 + cx);
+  const px = (y * blockH + cy) * imgW + (x * blockW + cx);
   const i = px * 4;
   return {
     r: data[i],
@@ -94,28 +84,13 @@ export function generatePixelArt({
   colorTable,
   showGrid = true,
   font = 'bold 12px sans-serif',
-  colorMode = 'dominant'
+  colorMode = 'dominant' // 新增参数
 }) {
-  let data, imgW, imgH, blockW, blockH;
-  if (colorMode === 'original') {
-    // 原方案：先缩放再取色
-    const imageData = getResizedImageData(img, pixelWidth, pixelHeight);
-    data = imageData.data;
-    imgW = pixelWidth;
-    imgH = pixelHeight;
-    blockW = 1;
-    blockH = 1;
-  } else {
-    // 新方案：原图分块
-    const imageData = getImageData(img);
-    data = imageData.data;
-    imgW = imageData.width;
-    imgH = imageData.height;
-    blockW = Math.floor(imgW / pixelWidth);
-    blockH = Math.floor(imgH / pixelHeight);
-  }
+  // 1. 缩放图片，获取像素数据
+  const imageData = getResizedImageData(img, pixelWidth, pixelHeight);
+  const { data, width: imgW, height: imgH } = imageData;
 
-  // 标准色准备
+  // 2. 标准色准备
   const palette = colorTable.map(c => ({
     ...hexToRgb(c.hex),
     name: c.name,
@@ -127,28 +102,22 @@ export function generatePixelArt({
     hex: c.hex
   }));
 
-  // 生成像素画数据
+  // 3. 生成像素画数据（每格取主色/平均色/中心色）
   const result = [];
+  const blockW = Math.floor(imgW / pixelWidth);
+  const blockH = Math.floor(imgH / pixelHeight);
   for (let y = 0; y < pixelHeight; y++) {
     const row = [];
     for (let x = 0; x < pixelWidth; x++) {
       let rgb;
       if (colorMode === 'dominant') {
-        const x0 = x * blockW, y0 = y * blockH;
-        rgb = getDominantColor(data, x0, y0, blockW, blockH, imgW);
+        rgb = getDominantColor(data, x, y, blockW, blockH, imgW);
       } else if (colorMode === 'average') {
-        const x0 = x * blockW, y0 = y * blockH;
-        rgb = getAverageColor(data, x0, y0, blockW, blockH, imgW);
+        rgb = getAverageColor(data, x, y, blockW, blockH, imgW);
       } else if (colorMode === 'center') {
-        const x0 = x * blockW, y0 = y * blockH;
-        rgb = getCenterColor(data, x0, y0, blockW, blockH, imgW);
-      } else if (colorMode === 'original') {
-        // 直接取缩放后像素
-        const i = (y * imgW + x) * 4;
-        rgb = { r: data[i], g: data[i + 1], b: data[i + 2] };
+        rgb = getCenterColor(data, x, y, blockW, blockH, imgW);
       } else {
-        const x0 = x * blockW, y0 = y * blockH;
-        rgb = getDominantColor(data, x0, y0, blockW, blockH, imgW);
+        rgb = getDominantColor(data, x, y, blockW, blockH, imgW);
       }
       // 映射到标准色
       const lab = rgb_to_lab(rgb);
@@ -165,7 +134,7 @@ export function generatePixelArt({
     result.push(row);
   }
 
-  // 绘制canvas
+  // 4. 绘制canvas
   const canvas = document.createElement('canvas');
   canvas.width = pixelWidth * cellSize;
   canvas.height = pixelHeight * cellSize;
@@ -177,12 +146,15 @@ export function generatePixelArt({
   for (let y = 0; y < pixelHeight; y++) {
     for (let x = 0; x < pixelWidth; x++) {
       const c = result[y][x];
+      // 填充色块
       ctx.fillStyle = c.hex;
       ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+      // 写色号
       ctx.fillStyle = '#222';
       ctx.fillText(c.name, x * cellSize + cellSize / 2, y * cellSize + cellSize / 2);
     }
   }
+  // 绘制网格线
   if (showGrid) {
     ctx.strokeStyle = '#888';
     for (let x = 0; x <= pixelWidth; x++) {
