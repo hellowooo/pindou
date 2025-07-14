@@ -1,11 +1,16 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import './App.css';
 import { loadColorTable } from './utils/colorTable';
 import { generatePixelArt } from './utils/pixelArt';
 import { exportColorList } from './utils/exportExcel';
-import { Button, InputNumber, Upload, message, Spin, Checkbox, Divider, Select } from 'antd';
+import { Button, InputNumber, Upload, message, Spin, Checkbox, Divider, Select, Modal } from 'antd';
 
 const { Option } = Select;
+
+function getDefaultColorNames(colorTable) {
+  // 默认A-M色号
+  return colorTable.filter(c => /^[A-Ma-m]/.test(c.name)).map(c => c.name);
+}
 
 function App() {
   const [img, setImg] = useState(null);
@@ -18,8 +23,20 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [lockRatio, setLockRatio] = useState(false);
   const [ratio, setRatio] = useState(1);
-  const [colorMode, setColorMode] = useState('dominant'); // 取色逻辑
+  const [colorMode, setColorMode] = useState('dominant');
+  const [excludeEdge, setExcludeEdge] = useState(false);
+  const [colorTable, setColorTable] = useState([]); // 全部色号
+  const [showColorModal, setShowColorModal] = useState(false);
+  const [selectedColors, setSelectedColors] = useState([]); // 用户选择的色号
   const canvasRef = useRef();
+
+  // 加载色号表
+  useEffect(() => {
+    loadColorTable().then(table => {
+      setColorTable(table);
+      setSelectedColors([]); // 默认不选，保持A-M
+    });
+  }, []);
 
   // 处理图片上传
   const handleUpload = info => {
@@ -76,16 +93,23 @@ function App() {
       return;
     }
     setLoading(true);
-    const colorTable = await loadColorTable();
+    // 只用被选中的色号（如未选则默认A-M）
+    let useColors = colorTable;
+    if (selectedColors.length > 0) {
+      useColors = colorTable.filter(c => selectedColors.includes(c.name));
+    } else {
+      useColors = colorTable.filter(c => /^[A-Ma-m]/.test(c.name));
+    }
     setTimeout(() => {
       const { canvas, result } = generatePixelArt({
         img: imgObj,
         pixelWidth,
         pixelHeight,
         cellSize,
-        colorTable,
+        colorTable: useColors,
         showGrid: true,
-        colorMode // 传递取色逻辑
+        colorMode,
+        excludeEdge
       });
       setCanvasUrl(canvas.toDataURL('image/png'));
       canvasRef.current = canvas;
@@ -117,6 +141,19 @@ function App() {
     exportColorList(usedColors);
   };
 
+  // 打开弹窗时默认勾选A-M色号
+  const handleOpenColorModal = () => {
+    if (selectedColors.length === 0) {
+      setSelectedColors(colorTable.filter(c => /^[A-Ma-m]/.test(c.name)).map(c => c.name));
+    }
+    setShowColorModal(true);
+  };
+
+  // 色号多选弹窗内容
+  const colorOptions = colorTable.map(c => ({ label: `${c.name} ${c.hex}`, value: c.name }));
+  // 按色号分组排序
+  colorOptions.sort((a, b) => a.value.localeCompare(b.value, 'zh-Hans-CN', { numeric: true }));
+
   return (
     <div className="App pretty-pink-bg">
       <h2 className="pretty-title">拼豆图纸生成工具</h2>
@@ -135,6 +172,11 @@ function App() {
         {img && (
           <div style={{ margin: '8px 0 0 0', textAlign: 'center' }}>
             <img src={img} alt="预览" style={{ maxWidth: 180, maxHeight: 120, borderRadius: 8, boxShadow: '0 1px 8px #ffd1dc55', border: '1.5px solid #ffd1dc' }} />
+            {imgObj && (
+              <div style={{ color: '#e75480', fontSize: 13, marginTop: 4 }}>
+                原始尺寸：{imgObj.width} × {imgObj.height}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -160,7 +202,23 @@ function App() {
             <Option value="average">平均色</Option>
             <Option value="center">中心像素色</Option>
             <Option value="original">自动</Option>
+            <Option value="diagonal45">对角线4/5处像素色</Option>
           </Select>
+        </div>
+        <div className="pretty-param-row">
+          <Checkbox checked={excludeEdge} onChange={e => setExcludeEdge(e.target.checked)}>
+            排除边缘像素（适合带网格线/格子有字的图片）
+          </Checkbox>
+        </div>
+        <div className="pretty-param-row">
+          <Button onClick={handleOpenColorModal}>
+            选择标准色
+          </Button>
+          {selectedColors.length > 0 && (
+            <span style={{ color: '#e75480', marginLeft: 12 }}>
+              已选 {selectedColors.length} 种标准色
+            </span>
+          )}
         </div>
       </div>
       <div className="pretty-section" style={{ textAlign: 'center', marginTop: 18 }}>
@@ -182,8 +240,46 @@ function App() {
       </div>
       <div className="pretty-tip">
         支持自定义像素画宽高，输出带色号和网格线的像素图及色号清单。<br />
-        <span style={{ color: '#e75480', fontWeight: 500 }}>温馨提示：</span> 色号仅使用A-M开头标准色。
+        <span style={{ color: '#e75480', fontWeight: 500 }}>温馨提示：</span> 色号仅使用A-M开头标准色，或自定义选择。
       </div>
+      <Modal
+        title="选择可用标准色"
+        open={showColorModal}
+        onCancel={() => setShowColorModal(false)}
+        onOk={() => setShowColorModal(false)}
+        okText="确定"
+        cancelText="取消"
+        width={600}
+      >
+        <Checkbox.Group
+          style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 8 }}
+          value={selectedColors}
+          onChange={setSelectedColors}
+        >
+          {colorOptions.map(opt => {
+            const colorObj = colorTable.find(c => c.name === opt.value);
+            return (
+              <Checkbox key={opt.value} value={opt.value} style={{ width: 110, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <span style={{ display: 'inline-block', width: 18, height: 18, background: colorObj ? colorObj.hex : '#eee', border: '1px solid #ccc', borderRadius: 4, marginRight: 6, verticalAlign: 'middle' }} />
+                  <span style={{ color: '#e75480' }}>{opt.label}</span>
+                </span>
+              </Checkbox>
+            );
+          })}
+        </Checkbox.Group>
+        <div style={{ marginTop: 12 }}>
+          <Button size="small" onClick={() => setSelectedColors(colorTable.map(c => c.name))} style={{ marginRight: 8 }}>
+            全选
+          </Button>
+          <Button size="small" onClick={() => setSelectedColors(colorTable.filter(c => /^[A-Ma-m]/.test(c.name)).map(c => c.name))} style={{ marginRight: 8 }}>
+            仅A-M
+          </Button>
+          <Button size="small" onClick={() => setSelectedColors([])}>
+            清空
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

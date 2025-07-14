@@ -23,13 +23,19 @@ export function getResizedImageData(img, pixelWidth, pixelHeight) {
 }
 
 // 取主色
-function getDominantColor(data, x0, y0, blockW, blockH, imgW) {
+function getDominantColor(data, x0, y0, blockW, blockH, imgW, excludeEdge = false) {
+  let sx = x0, sy = y0, ex = x0 + blockW, ey = y0 + blockH;
+  if (excludeEdge) {
+    const marginX = Math.max(1, Math.floor(blockW * 0.15));
+    const marginY = Math.max(1, Math.floor(blockH * 0.15));
+    sx += marginX; ex -= marginX; sy += marginY; ey -= marginY;
+  }
   const colorCount = {};
   let maxCount = 0;
   let dominant = { r: 0, g: 0, b: 0 };
-  for (let dy = 0; dy < blockH; dy++) {
-    for (let dx = 0; dx < blockW; dx++) {
-      const px = (y0 + dy) * imgW + (x0 + dx);
+  for (let y = sy; y < ey; y++) {
+    for (let x = sx; x < ex; x++) {
+      const px = y * imgW + x;
       const i = px * 4;
       const key = `${data[i]},${data[i+1]},${data[i+2]}`;
       colorCount[key] = (colorCount[key] || 0) + 1;
@@ -43,11 +49,17 @@ function getDominantColor(data, x0, y0, blockW, blockH, imgW) {
 }
 
 // 取平均色
-function getAverageColor(data, x0, y0, blockW, blockH, imgW) {
+function getAverageColor(data, x0, y0, blockW, blockH, imgW, excludeEdge = false) {
+  let sx = x0, sy = y0, ex = x0 + blockW, ey = y0 + blockH;
+  if (excludeEdge) {
+    const marginX = Math.max(1, Math.floor(blockW * 0.15));
+    const marginY = Math.max(1, Math.floor(blockH * 0.15));
+    sx += marginX; ex -= marginX; sy += marginY; ey -= marginY;
+  }
   let r = 0, g = 0, b = 0, count = 0;
-  for (let dy = 0; dy < blockH; dy++) {
-    for (let dx = 0; dx < blockW; dx++) {
-      const px = (y0 + dy) * imgW + (x0 + dx);
+  for (let y = sy; y < ey; y++) {
+    for (let x = sx; x < ex; x++) {
+      const px = y * imgW + x;
       const i = px * 4;
       r += data[i];
       g += data[i + 1];
@@ -55,19 +67,46 @@ function getAverageColor(data, x0, y0, blockW, blockH, imgW) {
       count++;
     }
   }
-  return {
+  return count > 0 ? {
     r: Math.round(r / count),
     g: Math.round(g / count),
     b: Math.round(b / count)
-  };
+  } : { r: 0, g: 0, b: 0 };
 }
 
 // 取中心像素色
-function getCenterColor(data, x0, y0, blockW, blockH, imgW) {
-  const cx = Math.floor(blockW / 2);
-  const cy = Math.floor(blockH / 2);
+function getCenterColor(data, x0, y0, blockW, blockH, imgW, excludeEdge = false) {
+  let cx = Math.floor(blockW / 2), cy = Math.floor(blockH / 2);
+  if (excludeEdge) {
+    // 取中心区域的中心像素
+    const marginX = Math.max(1, Math.floor(blockW * 0.15));
+    const marginY = Math.max(1, Math.floor(blockH * 0.15));
+    cx = Math.floor((blockW - 2 * marginX) / 2) + marginX;
+    cy = Math.floor((blockH - 2 * marginY) / 2) + marginY;
+  }
   const px = (y0 + cy) * imgW + (x0 + cx);
   const i = px * 4;
+  return {
+    r: data[i],
+    g: data[i + 1],
+    b: data[i + 2]
+  };
+}
+
+// 取对角线4/5处像素色
+function getDiagonal45Color(data, x0, y0, blockW, blockH, imgW, excludeEdge = false) {
+  // 计算4/5位置
+  let px = Math.floor(blockW * 4 / 5);
+  let py = Math.floor(blockH * 4 / 5);
+  if (excludeEdge) {
+    const marginX = Math.max(1, Math.floor(blockW * 0.15));
+    const marginY = Math.max(1, Math.floor(blockH * 0.15));
+    px = Math.floor((blockW - 2 * marginX) * 4 / 5) + marginX;
+    py = Math.floor((blockH - 2 * marginY) * 4 / 5) + marginY;
+  }
+  const xx = x0 + px;
+  const yy = y0 + py;
+  const i = (yy * imgW + xx) * 4;
   return {
     r: data[i],
     g: data[i + 1],
@@ -94,7 +133,8 @@ export function generatePixelArt({
   colorTable,
   showGrid = true,
   font = 'bold 12px sans-serif',
-  colorMode = 'dominant'
+  colorMode = 'dominant',
+  excludeEdge = false
 }) {
   let data, imgW, imgH, blockW, blockH;
   if (colorMode === 'original') {
@@ -133,22 +173,25 @@ export function generatePixelArt({
     const row = [];
     for (let x = 0; x < pixelWidth; x++) {
       let rgb;
-      if (colorMode === 'dominant') {
+      if (colorMode === 'diagonal45') {
         const x0 = x * blockW, y0 = y * blockH;
-        rgb = getDominantColor(data, x0, y0, blockW, blockH, imgW);
+        rgb = getDiagonal45Color(data, x0, y0, blockW, blockH, imgW, excludeEdge);
+      } else if (colorMode === 'dominant') {
+        const x0 = x * blockW, y0 = y * blockH;
+        rgb = getDominantColor(data, x0, y0, blockW, blockH, imgW, excludeEdge);
       } else if (colorMode === 'average') {
         const x0 = x * blockW, y0 = y * blockH;
-        rgb = getAverageColor(data, x0, y0, blockW, blockH, imgW);
+        rgb = getAverageColor(data, x0, y0, blockW, blockH, imgW, excludeEdge);
       } else if (colorMode === 'center') {
         const x0 = x * blockW, y0 = y * blockH;
-        rgb = getCenterColor(data, x0, y0, blockW, blockH, imgW);
+        rgb = getCenterColor(data, x0, y0, blockW, blockH, imgW, excludeEdge);
       } else if (colorMode === 'original') {
         // 直接取缩放后像素
         const i = (y * imgW + x) * 4;
         rgb = { r: data[i], g: data[i + 1], b: data[i + 2] };
       } else {
         const x0 = x * blockW, y0 = y * blockH;
-        rgb = getDominantColor(data, x0, y0, blockW, blockH, imgW);
+        rgb = getDominantColor(data, x0, y0, blockW, blockH, imgW, excludeEdge);
       }
       // 映射到标准色
       const lab = rgb_to_lab(rgb);

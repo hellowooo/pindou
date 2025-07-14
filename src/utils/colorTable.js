@@ -9,10 +9,7 @@ export async function loadColorTable() {
   for (let i = 1; i < lines.length; i++) {
     const [name, hex] = lines[i].split(',');
     if (name && hex) {
-      // 只保留A-M开头的色号
-      if (/^[A-Ma-m]/.test(name.trim())) {
-        result.push({ name: name.trim(), hex: hex.trim().toUpperCase() });
-      }
+      result.push({ name: name.trim(), hex: hex.trim().toUpperCase() });
     }
   }
   return result; // [{name: 'A1', hex: '#FAF4C8'}, ...]
