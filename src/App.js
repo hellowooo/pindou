@@ -156,7 +156,7 @@ function App() {
 
   return (
     <div className="App pretty-pink-bg">
-      <h2 className="pretty-title">拼豆图纸生成工具</h2>
+      <h2 className="pretty-title">琛's拼豆图纸生成器</h2>
       <div className="pretty-subtitle">上传图片，定制参数，一键生成像素图与专属拼豆色号表</div>
       <Divider style={{ borderColor: '#ffd1dc', margin: '18px 0 24px 0' }} />
       <div className="pretty-section">

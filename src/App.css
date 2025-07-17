@@ -186,7 +186,7 @@ img[alt="像素画预览"] {
 .ant-checkbox-checked .ant-checkbox-inner {
   background: linear-gradient(90deg, #ffb6c1 0%, #ff69b4 100%) !important;
   border-color: #ff69b4 !important;
-}
+  }
 .ant-checkbox-inner:after {
   left: 30%;
   top: 10%;
@@ -200,6 +200,6 @@ img[alt="像素画预览"] {
   border-radius: 12px;
   background: #fff0f6;
   box-shadow: 0 2px 12px #ffd1dc44;
-}
+  }
 
 @import url('https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap');
