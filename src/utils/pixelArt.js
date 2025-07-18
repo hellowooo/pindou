@@ -146,13 +146,14 @@ export function generatePixelArt({
     blockW = 1;
     blockH = 1;
   } else {
-    // 新方案：原图分块
+    // 新方案：原图分块（自适应，保证不裁剪）
     const imageData = getImageData(img);
     data = imageData.data;
     imgW = imageData.width;
     imgH = imageData.height;
-    blockW = Math.floor(imgW / pixelWidth);
-    blockH = Math.floor(imgH / pixelHeight);
+    // blockW/blockH 改为浮点数，后续每格自适应
+    blockW = imgW / pixelWidth;
+    blockH = imgH / pixelHeight;
   }
 
   // 标准色准备
@@ -173,25 +174,27 @@ export function generatePixelArt({
     const row = [];
     for (let x = 0; x < pixelWidth; x++) {
       let rgb;
+      // 计算每个格子的实际像素区域，保证全图覆盖
+      const x0 = Math.round(x * blockW);
+      const y0 = Math.round(y * blockH);
+      const x1 = Math.round((x + 1) * blockW);
+      const y1 = Math.round((y + 1) * blockH);
+      const w = Math.max(1, x1 - x0);
+      const h = Math.max(1, y1 - y0);
       if (colorMode === 'diagonal45') {
-        const x0 = x * blockW, y0 = y * blockH;
-        rgb = getDiagonal45Color(data, x0, y0, blockW, blockH, imgW, excludeEdge);
+        rgb = getDiagonal45Color(data, x0, y0, w, h, imgW, excludeEdge);
       } else if (colorMode === 'dominant') {
-        const x0 = x * blockW, y0 = y * blockH;
-        rgb = getDominantColor(data, x0, y0, blockW, blockH, imgW, excludeEdge);
+        rgb = getDominantColor(data, x0, y0, w, h, imgW, excludeEdge);
       } else if (colorMode === 'average') {
-        const x0 = x * blockW, y0 = y * blockH;
-        rgb = getAverageColor(data, x0, y0, blockW, blockH, imgW, excludeEdge);
+        rgb = getAverageColor(data, x0, y0, w, h, imgW, excludeEdge);
       } else if (colorMode === 'center') {
-        const x0 = x * blockW, y0 = y * blockH;
-        rgb = getCenterColor(data, x0, y0, blockW, blockH, imgW, excludeEdge);
+        rgb = getCenterColor(data, x0, y0, w, h, imgW, excludeEdge);
       } else if (colorMode === 'original') {
         // 直接取缩放后像素
         const i = (y * imgW + x) * 4;
         rgb = { r: data[i], g: data[i + 1], b: data[i + 2] };
       } else {
-        const x0 = x * blockW, y0 = y * blockH;
-        rgb = getDominantColor(data, x0, y0, blockW, blockH, imgW, excludeEdge);
+        rgb = getDominantColor(data, x0, y0, w, h, imgW, excludeEdge);
       }
       // 映射到标准色
       const lab = rgb_to_lab(rgb);

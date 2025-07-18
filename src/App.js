@@ -186,7 +186,7 @@ function App() {
           <span>宽(格):</span>
           <InputNumber min={2} max={200} value={pixelWidth} onChange={handleWidthChange} />
           <span style={{ marginLeft: 12 }}>高(格):</span>
-          <InputNumber min={2} max={300} value={pixelHeight} onChange={handleHeightChange} />
+          <InputNumber min={2} max={600} value={pixelHeight} onChange={handleHeightChange} />
           <Checkbox checked={lockRatio} onChange={e => handleLockRatio(e.target.checked)} style={{ marginLeft: 16 }}>
             锁定长宽比
           </Checkbox>
