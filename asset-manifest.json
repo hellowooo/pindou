@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/pindou/static/css/main.03ddedb8.css",
-    "main.js": "/pindou/static/js/main.8b27f897.js",
+    "main.js": "/pindou/static/js/main.c023b57e.js",
     "static/js/453.fcc762cf.chunk.js": "/pindou/static/js/453.fcc762cf.chunk.js",
     "index.html": "/pindou/index.html",
     "main.03ddedb8.css.map": "/pindou/static/css/main.03ddedb8.css.map",
-    "main.8b27f897.js.map": "/pindou/static/js/main.8b27f897.js.map",
+    "main.c023b57e.js.map": "/pindou/static/js/main.c023b57e.js.map",
     "453.fcc762cf.chunk.js.map": "/pindou/static/js/453.fcc762cf.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.03ddedb8.css",
-    "static/js/main.8b27f897.js"
+    "static/js/main.c023b57e.js"
   ]
 }
